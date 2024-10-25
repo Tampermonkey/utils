@@ -23,7 +23,8 @@
 
 /* global GM_info, GM_xmlhttpRequest, GM */
 
-((scope, GM) => {
+const HAS_GM = typeof GM !== 'undefined';
+const NEW_GM = ((scope, GM) => {
     // Check if running in Tampermonkey and if version supports redirect control
     if (GM_info.scriptHandler !== "Tampermonkey" || compareVersions(GM_info.version, "5.3.2") < 0) return;
 
@@ -158,16 +159,17 @@
     GM_xmlhttpRequest = GM_xmlhttpRequestWrapper;
     scope.GM_xmlhttpRequestOrig = GM_xmlhttpRequestOrig;
 
-    Object.defineProperties(GM, {
-        'xmlHttpRequest': {
-            get: () => GM_xmlHttpRequestWrapper,
-            set: (value) => GM.xmlHttpRequestOrig = value,
-            configurable: true
-        },
-        'xmlHttpRequestOrig': {
-            value: GM_xmlHttpRequestOrig,
-            writable: true,
-            configurable: true
-        }
-    });
-})(this, typeof GM !== 'undefined' ? GM : {});
+    const gopd = Object.getOwnPropertyDescriptor(GM, 'xmlHttpRequest');
+    if (gopd && gopd.configurable === false) {
+        return {
+            __proto__: GM,
+            xmlHttpRequest: GM_xmlHttpRequestWrapper,
+            xmlHttpRequestOrig: GM_xmlHttpRequestOrig
+        };
+    } else {
+        GM.xmlHttpRequest = GM_xmlHttpRequestWrapper;
+        GM.xmlHttpRequestOrig = GM_xmlHttpRequestOrig;
+    }
+})(this, HAS_GM ? GM : {});
+
+if (HAS_GM && NEW_GM) GM = NEW_GM;
